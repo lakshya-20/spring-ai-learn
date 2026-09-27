@@ -10,6 +10,16 @@ processors:
   memory_limiter:
     check_interval: 1s
     limit_mib: 256
+  # Spring AI emits spring.ai.tool.call.; Langfuse prefers langfuse.observation. / gen_ai.tool.call.*
+  transform/langfuse-tools:
+    trace_statements:
+      - context: span
+        statements:
+          - set(attributes["langfuse.observation.type"], "tool") where attributes["gen_ai.operation.name"] == "execute_tool"
+          - set(attributes["langfuse.observation.input"], attributes["spring.ai.tool.call.arguments"]) where attributes["spring.ai.tool.call.arguments"] != nil
+          - set(attributes["langfuse.observation.output"], attributes["spring.ai.tool.call.result"]) where attributes["spring.ai.tool.call.result"] != nil
+          - set(attributes["gen_ai.tool.call.arguments"], attributes["spring.ai.tool.call.arguments"]) where attributes["spring.ai.tool.call.arguments"] != nil
+          - set(attributes["gen_ai.tool.call.result"], attributes["spring.ai.tool.call.result"]) where attributes["spring.ai.tool.call.result"] != nil
   batch:
     timeout: 1s
     send_batch_size: 512
@@ -27,5 +37,5 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
+      processors: [memory_limiter, transform/langfuse-tools, batch]
       exporters: [debug, otlp_http/langfuse]

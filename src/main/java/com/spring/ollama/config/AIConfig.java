@@ -3,10 +3,10 @@ package com.spring.ollama.config;
 import com.spring.ollama.advisor.TokenPrinterAdvisor;
 import com.spring.ollama.service.tools.SimpleDateTimeTool;
 import com.spring.ollama.utils.MyLoggingAdvisor;
+import io.micrometer.observation.ObservationRegistry;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.SafeGuardAdvisor;
-import org.springframework.ai.chat.client.advisor.api.BaseAdvisor;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 //import org.springframework.ai.chat.memory.MessageWindowChatMemory;
@@ -23,7 +23,6 @@ import org.springframework.ai.rag.retrieval.join.ConcatenationDocumentJoiner;
 import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -43,28 +42,30 @@ public class AIConfig {
     public ChatClient ollamaChatClient(OllamaChatModel ollamaChatModel,
                                        ChatMemory chatMemory,
                                        VectorStore vectorStore,
-                                       SyncMcpToolCallbackProvider syncMcpToolCallbackProvider) {
+                                       SyncMcpToolCallbackProvider syncMcpToolCallbackProvider,
+                                       ObservationRegistry observationRegistry) {
 
         MessageChatMemoryAdvisor messageChatMemoryAdvisor = MessageChatMemoryAdvisor.builder(chatMemory).build();
 
         QuestionAnswerAdvisor questionAnswerAdvisor = getSimpleRAGFlowAdvisor(vectorStore);
 
-        RetrievalAugmentationAdvisor retrievalAugmentationAdvisor = getAdvancedRAGFlowAdvisor(vectorStore, ollamaChatModel);
+        RetrievalAugmentationAdvisor retrievalAugmentationAdvisor = getAdvancedRAGFlowAdvisor(vectorStore, ollamaChatModel, observationRegistry);
 
-
-        return ChatClient.builder(ollamaChatModel)
+        // ChatClient.builder(model) alone uses ObservationRegistry.NOOP, so tool spans never export.
+        return ChatClient.builder(ollamaChatModel, observationRegistry, null, null)
                 .defaultAdvisors(
                         new TokenPrinterAdvisor(),
                         messageChatMemoryAdvisor,
-                        retrievalAugmentationAdvisor,
+                        questionAnswerAdvisor,
                         MyLoggingAdvisor.builder().build())
                 .defaultTools(new SimpleDateTimeTool(), syncMcpToolCallbackProvider)
                 .build();
     }
 
     @Bean(name = "googleChatClient")
-    public ChatClient googleChatClient(GoogleGenAiChatModel googleGenAiChatModel) {
-        return ChatClient.builder(googleGenAiChatModel)
+    public ChatClient googleChatClient(GoogleGenAiChatModel googleGenAiChatModel,
+                                       ObservationRegistry observationRegistry) {
+        return ChatClient.builder(googleGenAiChatModel, observationRegistry, null, null)
                 .defaultAdvisors(new SafeGuardAdvisor(List.of("python", "Python")))
                 .build();
     }
@@ -77,8 +78,9 @@ public class AIConfig {
     }
 
     private RetrievalAugmentationAdvisor getAdvancedRAGFlowAdvisor(VectorStore vectorStore,
-                                                                   OllamaChatModel ollamaChatModel) {
-        ChatClient.Builder chatClientBuilder = ChatClient.builder(ollamaChatModel);
+                                                                   OllamaChatModel ollamaChatModel,
+                                                                   ObservationRegistry observationRegistry) {
+        ChatClient.Builder chatClientBuilder = ChatClient.builder(ollamaChatModel, observationRegistry, null, null);
         return RetrievalAugmentationAdvisor.builder()
                 .queryTransformers(
                         RewriteQueryTransformer.builder().chatClientBuilder(chatClientBuilder).build(),
