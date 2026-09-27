@@ -1,0 +1,28 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+
+exporters:
+  otlphttp/langfuse:
+    endpoint: https://jp.cloud.langfuse.com/api/public/otel
+    headers:
+      # Authorization uses Base64 encoded "PUBLIC_KEY:SECRET_KEY"
+      Authorization: "Basic cGstbGYtMDc5NDAxMDktYjEzNy00MDNlLWFjMGEtMmQyOWM5MzViZjMwOnNrLWxmLTdjY2MzZTU5LTdhNGQtNGFjNC1iYTFlLTI3YzE4YWNmN2I3NQ=="
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug, otlphttp/langfuse]
