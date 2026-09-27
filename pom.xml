@@ -93,6 +93,16 @@
 			<artifactId>spring-ai-starter-mcp-client</artifactId>
 		</dependency>
 
+		<!-- Observability: Micrometer observations + OTLP export to OpenTelemetry Collector -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-opentelemetry</artifactId>
+		</dependency>
+
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
