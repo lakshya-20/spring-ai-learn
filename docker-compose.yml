@@ -1,16 +1,13 @@
-version: '3.8'
-
 services:
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.100.0
-    container_name: otel-collector
+    image: otel/opentelemetry-collector-contrib:0.160.0
+    restart: unless-stopped
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
-      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
     ports:
       - "4317:4317" # OTLP gRPC receiver
       - "4318:4318" # OTLP HTTP receiver
     environment:
-      - LANGFUSE_PUBLIC_KEY=pk-lf-07940109-b137-403e-ac0a-2d29c935bf30
-      - LANGFUSE_SECRET_KEY=sk-lf-7ccc3e59-7a4d-4ac4-ba1e-27c18acf7b75
-      - LANGFUSE_HOST=https://jp.cloud.langfuse.com
+      LANGFUSE_OTLP_ENDPOINT: ${LANGFUSE_OTLP_ENDPOINT}
+      LANGFUSE_AUTH_HEADER: ${LANGFUSE_AUTH_HEADER}

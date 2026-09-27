@@ -7,22 +7,25 @@ receivers:
         endpoint: 0.0.0.0:4318
 
 processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
   batch:
     timeout: 1s
-    send_batch_size: 1024
+    send_batch_size: 512
 
 exporters:
-  otlphttp/langfuse:
-    endpoint: https://jp.cloud.langfuse.com/api/public/otel
+  otlp_http/langfuse:
+    endpoint: ${env:LANGFUSE_OTLP_ENDPOINT}
     headers:
-      # Authorization uses Base64 encoded "PUBLIC_KEY:SECRET_KEY"
-      Authorization: "Basic cGstbGYtMDc5NDAxMDktYjEzNy00MDNlLWFjMGEtMmQyOWM5MzViZjMwOnNrLWxmLTdjY2MzZTU5LTdhNGQtNGFjNC1iYTFlLTI3YzE4YWNmN2I3NQ=="
+      # Base64 of "PUBLIC_KEY:SECRET_KEY" — set LANGFUSE_AUTH_HEADER in .env
+      Authorization: "Basic ${env:LANGFUSE_AUTH_HEADER}"
   debug:
-    verbosity: detailed
+    verbosity: basic
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch]
-      exporters: [debug, otlphttp/langfuse]
+      processors: [memory_limiter, batch]
+      exporters: [debug, otlp_http/langfuse]
