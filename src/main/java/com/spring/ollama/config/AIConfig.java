@@ -3,6 +3,7 @@ package com.spring.ollama.config;
 import com.spring.ollama.advisor.TokenPrinterAdvisor;
 import com.spring.ollama.service.tools.SimpleDateTimeTool;
 import com.spring.ollama.utils.MyLoggingAdvisor;
+import com.spring.ollama.utils.SelfRefineEvaluationAdvisor;
 import io.micrometer.observation.ObservationRegistry;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
@@ -51,13 +52,16 @@ public class AIConfig {
 
         RetrievalAugmentationAdvisor retrievalAugmentationAdvisor = getAdvancedRAGFlowAdvisor(vectorStore, ollamaChatModel, observationRegistry);
 
+        SelfRefineEvaluationAdvisor selfRefineEvaluationAdvisor = getSelfRefineEvaluationAdvisor(ollamaChatModel);
+
         // ChatClient.builder(model) alone uses ObservationRegistry.NOOP, so tool spans never export.
         return ChatClient.builder(ollamaChatModel, observationRegistry, null, null)
                 .defaultAdvisors(
                         new TokenPrinterAdvisor(),
                         messageChatMemoryAdvisor,
                         questionAnswerAdvisor,
-                        MyLoggingAdvisor.builder().build())
+                        MyLoggingAdvisor.builder().build(),
+                        selfRefineEvaluationAdvisor)
                 .defaultTools(new SimpleDateTimeTool(), syncMcpToolCallbackProvider)
                 .build();
     }
@@ -100,5 +104,13 @@ public class AIConfig {
 
     }
 
+    private SelfRefineEvaluationAdvisor getSelfRefineEvaluationAdvisor(OllamaChatModel ollamaChatModel) {
+        return SelfRefineEvaluationAdvisor.builder()
+                .order(0)
+                .chatClientBuilder(ChatClient.builder(ollamaChatModel))
+                .maxRepeatAttempts(10)
+                .successRating(4)
+                .build();
+    }
 
 }
